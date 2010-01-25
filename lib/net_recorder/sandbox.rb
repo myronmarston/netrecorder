@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module NetRecorder
   class Sandbox
     VALID_RECORD_MODES = [:all, :none, :unregistered].freeze
@@ -71,6 +73,8 @@ module NetRecorder
 
     def write_recorded_responses_to_disk
       if NetRecorder::Config.cache_dir && new_recorded_responses.size > 0
+        directory = File.dirname(cache_file)
+        FileUtils.mkdir_p directory unless File.exist?(directory)
         File.open(cache_file, 'w') { |f| f.write recorded_responses.to_yaml }
       end
     end
