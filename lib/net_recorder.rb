@@ -6,6 +6,7 @@ require "net_recorder/fake_web_extensions"
 require "net_recorder/config"
 require "net_recorder/recorded_response"
 require "net_recorder/sandbox"
+require "net_recorder/cucumber_tags"
 
 # NetRecorder - the global namespace
 module NetRecorder
@@ -36,6 +37,10 @@ module NetRecorder
 
   def config
     yield NetRecorder::Config
+  end
+
+  def cucumber_tags
+    yield NetRecorder::CucumberTags
   end
 
 private
