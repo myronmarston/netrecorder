@@ -3,6 +3,7 @@
 require 'yaml'
 require "net_recorder/fake_web_extensions"
 require "net_recorder/config"
+require "net_recorder/recorded_response"
 require "net_recorder/sandbox"
 
 # NetRecorder - the global namespace
