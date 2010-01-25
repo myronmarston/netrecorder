@@ -11,6 +11,7 @@ module NetRecorder
 
     def destroy!
       write_recorded_responses_to_disk
+      deregister_original_recorded_responses
       restore_fakeweb_allow_net_conect
     end
 
@@ -40,9 +41,10 @@ module NetRecorder
     def load_recorded_responses
       return if record_mode == :all
 
+      @original_recorded_responses = []
       if NetRecorder::Config.cache_dir
         yaml_file = File.join(NetRecorder::Config.cache_dir, "#{name}.yml")
-        @recorded_responses = File.open(yaml_file, 'r') { |f| YAML.load(f.read) } if File.exist?(yaml_file)
+        @original_recorded_responses = @recorded_responses = File.open(yaml_file, 'r') { |f| YAML.load(f.read) } if File.exist?(yaml_file)
       end
 
       recorded_responses.each do |rr|
@@ -54,6 +56,12 @@ module NetRecorder
       if NetRecorder::Config.cache_dir && recorded_responses.size > 0
         yaml_file = File.join(NetRecorder::Config.cache_dir, "#{name}.yml")
         File.open(yaml_file, 'w') { |f| f.write recorded_responses.to_yaml }
+      end
+    end
+
+    def deregister_original_recorded_responses
+      @original_recorded_responses.each do |rr|
+        FakeWeb.remove_from_registry(rr.method, rr.uri)
       end
     end
   end
