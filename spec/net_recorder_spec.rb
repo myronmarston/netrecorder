@@ -75,12 +75,12 @@ describe NetRecorder do
   end
 
   describe 'cucumber_tags' do
-    it 'should yield the cucumber tags object' do
+    it 'should yield a cucumber tags object' do
       yielded_object = nil
       NetRecorder.cucumber_tags do |obj|
         yielded_object = obj
       end
-      yielded_object.should == NetRecorder::CucumberTags
+      yielded_object.should be_instance_of(NetRecorder::CucumberTags)
     end
   end
 end

@@ -39,8 +39,9 @@ module NetRecorder
     yield NetRecorder::Config
   end
 
-  def cucumber_tags
-    yield NetRecorder::CucumberTags
+  def cucumber_tags(&block)
+    main_object = eval('self', block.binding)
+    yield NetRecorder::CucumberTags.new(main_object)
   end
 
 private
