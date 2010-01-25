@@ -1,10 +1,13 @@
 module NetRecorder
   class Sandbox
+    VALID_RECORD_MODES = [:all, :none, :unregistered].freeze
+
     attr_reader :name, :record_mode
 
     def initialize(name, options = {})
       @name = name
-      @record_mode = options[:record] || :unregistered
+      @record_mode = options[:record] || NetRecorder::Config.default_sandbox_record_mode
+      self.class.raise_error_unless_valid_record_mode(record_mode)
       set_fakeweb_allow_net_connect
       load_recorded_responses
     end
@@ -25,6 +28,12 @@ module NetRecorder
 
     def cache_file
       File.join(NetRecorder::Config.cache_dir, "#{name.to_s.gsub(/[^\w\-]+/, '_')}.yml") if NetRecorder::Config.cache_dir
+    end
+
+    def self.raise_error_unless_valid_record_mode(record_mode)
+      unless VALID_RECORD_MODES.include?(record_mode)
+        raise ArgumentError.new("#{record_mode} is not a valid sandbox record mode.  Valid options are: #{VALID_RECORD_MODES.inspect}")
+      end
     end
 
     private

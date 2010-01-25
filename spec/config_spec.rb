@@ -12,4 +12,16 @@ describe NetRecorder::Config do
       lambda { NetRecorder::Config.cache_dir = nil }.should_not raise_error
     end
   end
+
+  describe '#default_sandbox_record_mode' do
+    NetRecorder::Sandbox::VALID_RECORD_MODES.each do |mode|
+      it "should allow #{mode}" do
+        lambda { NetRecorder::Config.default_sandbox_record_mode = mode }.should_not raise_error
+      end
+    end
+
+    it "should not allow :not_a_record_mode" do
+      lambda { NetRecorder::Config.default_sandbox_record_mode = :not_a_record_mode }.should raise_error(ArgumentError)
+    end
+  end
 end
