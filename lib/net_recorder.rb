@@ -1,7 +1,7 @@
 # NetRecorder allows you to record requests and responses from the web
 
-require 'fakeweb'
 require 'yaml'
+require "net_recorder/fake_web_extensions"
 require "net_recorder/http"
 require "net_recorder/http_header"
 require "net_recorder/config"
