@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'fakeweb'
-require "#{File.dirname(__FILE__)}/../../lib/netrecorder"
+require "net_recorder"
 
 module NetRecorderMatchers
   def be_the_example_dot_com_response

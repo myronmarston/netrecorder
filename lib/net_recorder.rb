@@ -2,9 +2,9 @@
 
 require 'fakeweb'
 require 'yaml'
-require "#{File.dirname(__FILE__)}/http"
-require "#{File.dirname(__FILE__)}/http_header"
-require "#{File.dirname(__FILE__)}/config"
+require "net_recorder/http"
+require "net_recorder/http_header"
+require "net_recorder/config"
 
 # NetRecorder - the global namespace
 module NetRecorder
