@@ -60,7 +60,8 @@ module NetRecorder
       return if record_mode == :all
 
       if cache_file
-        @original_recorded_responses = @recorded_responses = File.open(cache_file, 'r') { |f| YAML.load(f.read) } if File.exist?(cache_file)
+        @original_recorded_responses = File.open(cache_file, 'r') { |f| YAML.load(f.read) } if File.exist?(cache_file)
+        recorded_responses.replace(@original_recorded_responses)
       end
 
       recorded_responses.each do |rr|
