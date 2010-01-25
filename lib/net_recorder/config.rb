@@ -1,3 +1,5 @@
+require 'fileutils'
+
 # Config class is used to capture configuration options
 module NetRecorder
   class Config
