@@ -63,4 +63,14 @@ describe NetRecorder do
       lambda { NetRecorder.with_sandbox(:sandbox_test) { raise StandardError } }.should raise_error
     end
   end
+
+  describe 'config' do
+    it 'should yield the configuration object' do
+      yielded_object = nil
+      NetRecorder.config do |obj|
+        yielded_object = obj
+      end
+      yielded_object.should == NetRecorder::Config
+    end
+  end
 end

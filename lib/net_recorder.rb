@@ -34,6 +34,10 @@ module NetRecorder
     destroy_sandbox!
   end
 
+  def config
+    yield NetRecorder::Config
+  end
+
 private
 
   def sandboxes
