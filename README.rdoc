@@ -2,7 +2,8 @@
 
 Record network responses for easy stubbing of external calls.
 
-Net recorder hooks into NetHTTP to record the outgoing request path and method and caches the response.  Then you can switch on fakeweb and it will use the cache from the recording.
+Net recorder hooks into Net::HTTP to record the outgoing request path and method and caches the response.
+Then it'll register the recorded responses with fakeweb so that future runs of your test suite use the cached response.
 
 == Requirements
 
@@ -12,51 +13,109 @@ Net recorder hooks into NetHTTP to record the outgoing request path and method a
 
   gem install netrecorder
   
-== Usage
-  
-Anywhere you use fakeweb, you can use net recorder.
-  
-Record all responses:
-  
-  NetRecorder.config do |config|
-    config.cache_file       = File.join(RAILS_ROOT, 'fakeweb')
-    config.record_net_calls = true
+== Basic Concept
+
+This README assumes you are familiar with fakeweb; if not, please checkout the {fakeweb README}[http://github.com/chrisk/fakeweb/blob/master/README.rdoc].
+
+Prior to the 1.0.0 release, NetRecorder used a global cache to manage the the recorded responses and register them
+with fakeweb.  This had several problems, including leading to test interdependence.  The 1.0.0 release was rewritten 
+to allow you to localize your caches using the concept of a sandbox.  This concept is central to how NetRecorder works.  
+Creating a NetRecorder sandbox does the following:
+
+* It loads the previously recorded responses from the cache file corresponding to the sandbox name.
+* It register these responses with fakeweb (depending on the sandbox's :record option)
+* It sets the <tt>FakeWeb.allow_net_connect</tt> setting based on the sandbox's :record option.
+
+Within a sandbox, any HTTP requests corresponding to one of the cached requests will get the 
+cached response.  New HTTP requests (i.e. HTTP requests that have not been previously recorded)
+can be recorded to the same cache file, depending on your :record option.  Destroying a sandbox does the following:
+
+* It saves all of the recorded responses (both old and new) to a cached yml file corresponding to the sandbox name.
+* It removes the registrations it made with fakeweb, to prevent "leakage" into other tests.
+* It reverts the <tt>FakeWeb.allow_net_connect</tt> back to whatever it was before the sandbox was created.
+
+== Record modes
+
+NetRecorder supports 3 record modes, which configures when it records new responses.  You can set a default
+record mode in your configuration (see below) and a per-sandbox record mode when creating a sandbox.  The record
+modes are:
+
+* :all - This will cause NetRecorder to re-record all HTTP requests within the sandbox.  When the sandbox is created,
+  it will not register any of the cached responses with fakeweb.  <tt>FakeWeb.allow_net_connect</tt> will be set to
+  true, so that NetRecorder will record new responses for each request.
+* :none - This will prevent NetRecorder from recording, or even allowing, HTTP requests within the sandbox.
+  The previously recorded responses will be registered with fakeweb.  <tt>FakeWeb.allow_net_connect</tt> will be set to
+  false, so that no new HTTP connections are allowed.
+* :unregistered - This will use the previously recorded responses, and record any new requests that are not registered with
+  fakeweb.  The previously recorded responses will be registered with fakeweb.  <tt>FakeWeb.allow_net_connect</tt> will be 
+  set to true, so that NetRecorder will record any new HTTP requests within the sandbox.
+
+== Configuration
+
+  # set the default allow_net_connect option--usually you'll want this off.
+  FakeWeb.allow_net_connect = false
+
+  NetRecorder.config do |c|
+    # the cache_dir is where the sandbox cache yml files will be saved.
+    c.cache_dir = File.join(Rails.root, 'features', 'fixtures', 'netrecorder_sandboxes')
+
+    # this record mode will be used for any sandbox you create without specifying a record mode.
+    c.default_sandbox_record_mode = :none
   end
 
-Save recorded responses:
+This can go pretty much wherever, as long as this code is run before your tests, specs or scenarios.
 
-  NetRecorder.cache!
+== Usage with your favorite test/spec framework
 
-Use recorded cache with fakeweb:
-  
-  NetRecorder.config do |config|
-    config.cache_file = File.join(RAILS_ROOT, 'features', 'support', 'fakeweb')
-    config.fakeweb    = true
+NetRecorder can easily be used with any ruby test/spec framework.  Usually, you'll want to use <tt>NetRecorder.with_sandbox</tt>:
+
+  NetRecorder.with_sandbox('geocoding/Seattle, WA', :record => :unregistered) do
+    # do something that causes an HTTP request.
   end
 
-== Cucumber Example
+Alternately, you can create and destroy the sandbox with individual method calls from a setup/before block:
 
-see http://cukes.info for more info on testing with Cucumber
-  
-# features/support/env.rb
-  NetRecorder.config do |config|
-    config.cache_file = File.join(RAILS_ROOT, 'features', 'support', 'fakeweb')
+  describe "Something that makes an HTTP request" do
+    before(:each) do
+      NetRecorder.create_sandbox!('geocoding/Seattle, WA', :record => :unregistered)
+    end
 
-    if ENV['RECORD_NET_CALLS']
-      config.record_net_calls = true
-    else
-      FakeWeb.allow_net_connect = false
-      config.fakeweb = true
+    it "should do something that makes an HTTP request"
+
+    after(:each) do
+      NetRecorder.destroy_sandbox!
     end
   end
-  
-# features/support/hooks.rb
-  at_exit do
-    NetRecorder.cache! if NetRecorder.recording?
-  end
-  
-record mode
-  >> rake features RECORD_NET_CALLS=true
 
-cache mode
-  >> rake features
+In both of these cases, the sandbox would use a cache file at geocoding/Seattle_WA.yml within the configured
+cache dir.  The :record setting is optional--if you leave it blank, your configured default will be used.
+
+== Usage with Cucumber
+
+NetRecorder works quite well with Cucumber.  You can use <tt>NetRecorder.with_sandbox</tt> within a step definition
+for a local sandbox.  In addition, NetRecorder includes support for creating a sandbox for particular tagged scenarios:
+
+  # in a cucumber feature file...
+  @facebook_http_request
+  Scenario: Sign up with facebook connect
+
+  # in features/support/netrecorder.rb (or some similar support file)
+  NetRecorder.cucumber_tags do |t|
+    t.tags '@facebook_http_request', '@twitter_status_update', :record => :none
+    t.tags '@another_scenario_tag'   # the default record mode will be used for this tag. 
+  end
+
+For each of the tags you specify in your cucumber_tags block, NetRecorder will set up the appropriate
+{Before and After hooks}[http://wiki.github.com/aslakhellesoy/cucumber/hooks] to create and destroy a sandbox.
+The tag (minus the '@') will be used as the sandbox name.
+
+== Notes, etc.
+
+* The sandbox name determines the name of the cache file for the given sandbox.  Strings or symbols are fine,
+  and you can include any characters, but spaces and invalid file name characters will be removed 
+  before the sandbox reads or writes to the file.
+* You can use a directory separator (i.e. '/') in your sandbox names to cause it to use a subdirectory of the cache_dir.
+* NetRecorder maintains a simple stack of sandboxes.  This allows you to nest them as deeply as you want.
+  This may not be particularly useful, but could come in handy with the cucumber tagging support: 
+  you can tag a scenario to use a sandbox for the entire scenario, and use a sandbox within a particular 
+  step definition, and it'll work properly.
