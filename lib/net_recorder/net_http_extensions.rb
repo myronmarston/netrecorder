@@ -3,8 +3,7 @@ require 'net/http'
 module Net
   class HTTP
     def request_with_netrecorder(request, body = nil, &block)
-      response = request_without_netrecorder(request, body)
-      yield response if block
+      response = request_without_netrecorder(request, body, &block)
       store_response(response, request)
       response
     end
