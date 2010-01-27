@@ -1,3 +1,5 @@
+require 'tmpdir'
+
 module NetRecorderHelpers
   def have_expected_response(url, regex_str)
     simple_matcher("a response from #{url} that matches /#{regex_str}/") do |responses|
@@ -13,13 +15,19 @@ World(NetRecorderHelpers)
 
 Given /^our cache dir is set to an empty directory$/ do
   NetRecorder.config do |c|
-    c.cache_dir = File.join(File.dirname(__FILE__), '..', 'fixtures', 'temp', Time.now.to_i.to_s)
+    c.cache_dir = File.join(Dir.tmpdir, Time.now.object_id.to_s)
     Dir.glob("#{c.cache_dir}/*.yml").should be_empty
   end
 end
 
 Given /^this scenario is tagged with a netrecorder sandbox tag$/ do
   # do nothing...
+end
+
+Given /^the previous scenario was tagged with the netrecorder sandbox tag: "([^\"]*)"$/ do |tag|
+  last_scenario = NetRecorder.completed_cucumber_scenarios.last
+  last_scenario.should_not be_nil
+  last_scenario.should be_tagged_with(tag)
 end
 
 When /^I make an HTTP get request to "([^\"]*)"$/ do |url|
@@ -38,6 +46,6 @@ Then /^the "([^\"]*)" cache file should have a response for "([^\"]*)" that matc
   responses.should have_expected_response(url, regex_str)
 end
 
-Then /^the current sandbox should have a recorded response for "([^\"]*)" that matches \/(.+)\/ so that it gets saved when the scenario completes$/ do |url, regex_str|
-  NetRecorder.current_sandbox.recorded_responses.should have_expected_response(url, regex_str)
+Then /^I can test the scenario sandbox's recorded responses in the next scenario, after the sandbox has been destroyed$/ do
+  # do nothing...
 end
