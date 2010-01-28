@@ -33,3 +33,21 @@ Feature: Record response
     Given the previous scenario was tagged with the netrecorder sandbox tag: "@netrecorder_sandbox2"
      Then the "cucumber_tags/netrecorder_sandbox2" cache file should have a response for "http://example.com/before_nested" that matches /The requested URL \/before_nested was not found/
       And the "cucumber_tags/netrecorder_sandbox2" cache file should have a response for "http://example.com/after_nested" that matches /The requested URL \/after_nested was not found/
+
+  Scenario: Make an HTTP request in a sandbox with record mode set to :all
+    Given our cache dir is set to an empty directory
+     When I make an HTTP get request to "http://example.com" within the "record_all_sandbox" all sandbox
+     Then the "record_all_sandbox" cache file should have a response for "http://example.com" that matches /You have reached this web page by typing.*example\.com/
+
+  Scenario: Make an HTTP request in a sandbox with record mode set to :none
+    Given our cache dir is set to an empty directory
+     When I make an HTTP get request to "http://example.com" within the "record_none_sandbox" none sandbox
+     Then the HTTP get request to "http://example.com" should result in a fakeweb error
+      And there should not be a "record_none_sandbox" cache file
+
+  Scenario: Make an HTTP request in a sandbox with record mode set to :unregistered
+    Given our cache dir is set to an empty directory
+      And we have a "record_unregistered_sandbox.yml" file with a previously recorded response for "http://example.com:80/"
+     When I make HTTP get requests to "http://example.com" and "http://example.com/foo" within the "record_unregistered_sandbox" unregistered sandbox
+     Then the "record_unregistered_sandbox" cache file should have a response for "http://example.com" that matches /This is not the real response from example\.com/
+      And the "record_unregistered_sandbox" cache file should have a response for "http://example.com/foo" that matches /The requested URL \/foo was not found/
