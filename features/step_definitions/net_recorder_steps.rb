@@ -1,5 +1,13 @@
 require 'tmpdir'
 
+begin
+  require 'ruby-debug'
+  Debugger.settings[:autoeval] = true
+  Debugger.start
+rescue LoadError
+  puts "Debugging disabled. `gem install ruby-debug` to enable."
+end
+
 module NetRecorderHelpers
   def have_expected_response(url, regex_str)
     simple_matcher("a response from #{url} that matches /#{regex_str}/") do |responses|
@@ -13,29 +21,34 @@ end
 
 World(NetRecorderHelpers)
 
-Given /^our cache dir is set to an empty directory$/ do
-  NetRecorder.config do |c|
-    c.cache_dir = File.join(Dir.tmpdir, Time.now.object_id.to_s)
-    Dir.glob("#{c.cache_dir}/*.yml").should be_empty
-  end
+Given /^we do not have a "([^\"]*)" sandbox$/ do |sandbox_name|
+  fixture_file = File.join(NetRecorder::Config.cache_dir, "#{sandbox_name}.yml")
+  File.exist?(fixture_file).should be_false
 end
 
-Given /^we have a "([^\"]*)" file with a previously recorded response for "([^\"]*)"$/ do |file_name, url|
-  fixture_file = File.join(File.dirname(__FILE__), '..', 'fixtures', 'netrecorder_sandboxes', file_name)
+Given /^we have a "([^\"]*)" file with (a|no) previously recorded response for "([^\"]*)"$/ do |file_name, a_or_no, url|
+  fixture_file = File.join(NetRecorder::Config.cache_dir, "#{file_name}.yml")
   File.exist?(fixture_file).should be_true
   responses = File.open(fixture_file, 'r') { |f| YAML.load(f.read) }
-  responses.map(&:uri).should include(url)
-  FileUtils.cp fixture_file, File.join(NetRecorder::Config.cache_dir, file_name)
+  should_method = a_or_no == 'a' ? :should : :should_not
+  responses.map{ |r| URI.parse(r.uri) }.send(should_method, include(URI.parse(url)))
 end
 
-Given /^this scenario is tagged with a netrecorder sandbox tag$/ do
-  # do nothing...
+Given /^the "([^\"]*)" cache file has a response for "([^\"]*)" that matches \/(.+)\/$/ do |sandbox_name, url, regex_str|
+  Given %{we have a "#{sandbox_name}" file with a previously recorded response for "#{url}"}
+  Then %{the "#{sandbox_name}" cache file should have a response for "#{url}" that matches /#{regex_str}/}
+end
+
+Given /^this scenario is tagged with the netrecorder sandbox tag: "([^\"]+)"$/ do |tag|
+  NetRecorder.current_cucumber_scenario.should be_tagged_with(tag)
+  NetRecorder::CucumberTags.tags.should include(tag)
 end
 
 Given /^the previous scenario was tagged with the netrecorder sandbox tag: "([^\"]*)"$/ do |tag|
   last_scenario = NetRecorder.completed_cucumber_scenarios.last
   last_scenario.should_not be_nil
   last_scenario.should be_tagged_with(tag)
+  NetRecorder::CucumberTags.tags.should include(tag)
 end
 
 When /^I make an HTTP get request to "([^\"]*)"$/ do |url|
@@ -49,7 +62,7 @@ When /^I make an HTTP get request to "([^\"]*)"$/ do |url|
 end
 
 When /^I make (?:an )?HTTP get requests? to "([^\"]*)"(?: and "([^\"]*)")? within the "([^\"]*)" ?(#{NetRecorder::Sandbox::VALID_RECORD_MODES.join('|')})? sandbox$/ do |url1, url2, sandbox_name, record_mode|
-  record_mode ||= :all
+  record_mode ||= :unregistered
   record_mode = record_mode.to_sym
   urls = [url1, url2].select { |u| u.to_s.size > 0 }
   NetRecorder.with_sandbox(sandbox_name, :record => record_mode) do
@@ -71,6 +84,11 @@ end
 
 Then /^the HTTP get request to "([^\"]*)" should result in a fakeweb error$/ do |url|
   @http_requests[url].should be_instance_of(FakeWeb::NetConnectNotAllowedError)
+end
+
+Then /^the response for "([^\"]*)" should match \/(.+)\/$/ do |url, regex_str|
+  regex = /#{regex_str}/i
+  @http_requests[url].body.should =~ regex
 end
 
 Then /^there should not be a "([^\"]*)" cache file$/ do |sandbox_name|
