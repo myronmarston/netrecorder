@@ -16,7 +16,7 @@ describe NetRecorder::CucumberTags do
     @blocks[:after] << block
   end
 
-  describe 'tag' do
+  describe '#tag' do
     [:before, :after].each do |hook|
       it "should set up a cucumber #{hook} hook for the given tag that creates a new sandbox" do
         NetRecorder.cucumber_tags { |t| t.tag 'tag_test' }
@@ -58,6 +58,14 @@ describe NetRecorder::CucumberTags do
         @blocks[hook].should have(1).block
         @blocks[hook].first.call
       end
+    end
+  end
+
+  describe '.tags' do
+    it 'returns the list of cucumber tags' do
+      NetRecorder.cucumber_tags { |t| t.tag 'tag1' }
+      NetRecorder.cucumber_tags { |t| t.tags 'tag7', 'tag12' }
+      NetRecorder::CucumberTags.tags[-3, 3].should == %w(@tag1 @tag7 @tag12)
     end
   end
 end

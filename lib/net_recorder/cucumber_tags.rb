@@ -1,5 +1,16 @@
 module NetRecorder
   class CucumberTags
+    class << self
+      def tags
+        @tags.dup
+      end
+
+      def add_tag(tag)
+        @tags << tag
+      end
+    end
+
+    @tags = []
     def initialize(main_object)
       @main_object = main_object
     end
@@ -19,6 +30,7 @@ module NetRecorder
             NetRecorder.destroy_sandbox!
           end
         end
+        self.class.add_tag(tag_name)
       end
     end
     alias :tag :tags
